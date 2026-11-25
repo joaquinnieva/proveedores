@@ -6,7 +6,7 @@ App web para gestionar proveedores y pedidos de un negocio chico. Funciona 100% 
 
 - **Panel**: resumen de proveedores activos, pedidos abiertos, pedidos atrasados y montos, con accesos rápidos.
 - **Proveedores**: alta, edición y detalle de proveedores (rubro, etiquetas, estado, contactos, WhatsApp, email, teléfono, web, Instagram, dirección, zona, condiciones de pago, pedido mínimo, costo de envío, envío gratis desde, plazo de entrega y notas).
-- **Productos**: catálogo por proveedor con costo, unidad, cantidad mínima (MOQ), categoría y link.
+- **Productos**: catálogo por proveedor con costo, unidad, cantidad mínima (MOQ), categoría y link. Incluye importación masiva pegando un JSON generado por una IA, con prompt incluido, vista previa y detección de duplicados (ver `PROMPT_IMPORTAR_PRODUCTOS.md`).
 - **Pedidos**: seguimiento con estados (`interesado`, `por pedir`, `pedido`, `confirmado`, `recibido`, `cancelado`), canal, prioridad, fechas e ítems con cantidad y precio unitario.
 - **Detalle de pedido**: totales por ítem y del pedido, y envío directo del texto por WhatsApp (`wa.me`) o email.
 - **Comparar compras**: compara un mismo producto entre proveedores con costo unitario, MOQ, envío (y envío gratis desde cierto monto) y pedido mínimo, para ver el total real y elegir qué conviene.

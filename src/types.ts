@@ -67,6 +67,7 @@ export interface Producto {
   unidad?: string
   moq?: number
   link?: string
+  imagen?: string
   notas?: string
   createdAt: string
 }

@@ -1,7 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
+  ArrowDown,
   ArrowLeft,
+  ArrowUp,
   AtSign,
+  ChevronsUpDown,
   ExternalLink,
   Globe,
   Mail,
@@ -10,12 +13,14 @@ import {
   Phone,
   Plus,
   Trash2,
+  Upload,
 } from 'lucide-react'
 import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ContactoDialog } from '../components/ContactoDialog'
+import { ImportarProductosDialog } from '../components/ImportarProductosDialog'
 import { PedidoDialog } from '../components/PedidoDialog'
 import { ProductoDialog } from '../components/ProductoDialog'
 import { ProveedorDialog } from '../components/ProveedorDialog'
@@ -55,7 +60,13 @@ import {
 } from '../components/styles'
 import { Badge, Button, ConfirmDialog, EmptyState, IconButton, PageHeader } from '../components/ui'
 import { db, useAppSettings } from '../db/db'
-import { deleteContacto, deleteProducto, deleteProveedor, registrarContacto } from '../db/repo'
+import {
+  deleteContacto,
+  deleteProducto,
+  deleteProductos,
+  deleteProveedor,
+  registrarContacto,
+} from '../db/repo'
 import { cx } from '../lib/cx'
 import {
   ESTADO_PEDIDO_LABEL,
@@ -74,6 +85,98 @@ const EMPTY_CONTACTOS: Contacto[] = []
 const EMPTY_PRODUCTOS: Producto[] = []
 const EMPTY_PEDIDOS: Pedido[] = []
 const EMPTY_ITEMS: PedidoItem[] = []
+
+type CampoOrdenProducto = 'nombre' | 'categoria' | 'costo' | 'moq'
+type DireccionOrden = 'asc' | 'desc'
+
+function compararProductos(
+  a: Producto,
+  b: Producto,
+  campo: CampoOrdenProducto,
+  direccion: DireccionOrden,
+): number {
+  const signo = direccion === 'asc' ? 1 : -1
+  if (campo === 'costo' || campo === 'moq') {
+    const va = typeof a[campo] === 'number' ? a[campo] : null
+    const vb = typeof b[campo] === 'number' ? b[campo] : null
+    if (va === null || vb === null) {
+      if (va === vb) return 0
+      return va === null ? 1 : -1
+    }
+    return (va - vb) * signo
+  }
+  const va = a[campo]?.trim() ?? ''
+  const vb = b[campo]?.trim() ?? ''
+  if (!va || !vb) {
+    if (va === vb) return 0
+    return va ? -1 : 1
+  }
+  return va.localeCompare(vb, 'es', { numeric: true, sensitivity: 'base' }) * signo
+}
+
+function SortableTh({
+  label,
+  campo,
+  orden,
+  onSort,
+  align = 'left',
+}: {
+  label: string
+  campo: CampoOrdenProducto
+  orden: { campo: CampoOrdenProducto; direccion: DireccionOrden }
+  onSort: (campo: CampoOrdenProducto) => void
+  align?: 'left' | 'right'
+}) {
+  const activo = orden.campo === campo
+  const Icono = activo ? (orden.direccion === 'asc' ? ArrowUp : ArrowDown) : ChevronsUpDown
+  return (
+    <th
+      className={cx(thClass, align === 'right' ? 'text-right' : 'text-left')}
+      aria-sort={activo ? (orden.direccion === 'asc' ? 'ascending' : 'descending') : 'none'}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(campo)}
+        className={cx(
+          'inline-flex cursor-pointer items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted hover:text-ink',
+          align === 'right' && 'w-full justify-end',
+          activo && 'text-ink',
+        )}
+      >
+        {label}
+        <Icono size={12} className={activo ? 'text-accent-ink' : 'text-muted/60'} />
+      </button>
+    </th>
+  )
+}
+
+function SelectionCheckbox({
+  checked,
+  indeterminate = false,
+  onChange,
+  label,
+}: {
+  checked: boolean
+  indeterminate?: boolean
+  onChange: (checked: boolean) => void
+  label: string
+}) {
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate
+  }, [indeterminate])
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      onChange={(event) => onChange(event.target.checked)}
+      aria-label={label}
+      title={label}
+      className="block size-4 cursor-pointer align-middle accent-[var(--color-accent)]"
+    />
+  )
+}
 
 function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -133,6 +236,13 @@ export function ProveedorDetail() {
   const [productoOpen, setProductoOpen] = useState(false)
   const [productoEdit, setProductoEdit] = useState<Producto | null>(null)
   const [borrarProducto, setBorrarProducto] = useState<Producto | null>(null)
+  const [importarOpen, setImportarOpen] = useState(false)
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
+  const [borrarSeleccionados, setBorrarSeleccionados] = useState(false)
+  const [ordenProducto, setOrdenProducto] = useState<{
+    campo: CampoOrdenProducto
+    direccion: DireccionOrden
+  }>({ campo: 'nombre', direccion: 'asc' })
 
   const itemsPorPedido = useMemo(() => {
     const map = new Map<string, number>()
@@ -149,6 +259,24 @@ export function ProveedorDetail() {
     }
     return map
   }, [items])
+
+  const productosOrdenados = useMemo(() => {
+    return [...productos].sort((a, b) => {
+      const resultado = compararProductos(a, b, ordenProducto.campo, ordenProducto.direccion)
+      return resultado !== 0
+        ? resultado
+        : a.nombre.localeCompare(b.nombre, 'es', { numeric: true, sensitivity: 'base' })
+    })
+  }, [productos, ordenProducto])
+
+  useEffect(() => {
+    setSeleccionados((prev) => {
+      if (prev.size === 0) return prev
+      const ids = new Set(productos.map((producto) => producto.id))
+      const siguiente = new Set([...prev].filter((id) => ids.has(id)))
+      return siguiente.size === prev.size ? prev : siguiente
+    })
+  }, [productos])
 
   if (!loaded) {
     return <p className={loadingClass}>Cargando proveedor…</p>
@@ -174,8 +302,36 @@ export function ProveedorDetail() {
   const whatsapp = normalizePhone(proveedor.whatsapp ?? proveedor.telefono)
   const instagram = instagramUrl(proveedor.instagram)
   const web = webUrl(proveedor.web)
-  const productosOrdenados = [...productos].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
   const pedidosOrdenados = [...pedidos].sort((a, b) => b.fecha.localeCompare(a.fecha))
+  const todosSeleccionados = productos.length > 0 && seleccionados.size === productos.length
+
+  function alternarOrden(campo: CampoOrdenProducto) {
+    setOrdenProducto((prev) =>
+      prev.campo === campo
+        ? { campo, direccion: prev.direccion === 'asc' ? 'desc' : 'asc' }
+        : { campo, direccion: 'asc' },
+    )
+  }
+
+  function alternarSeleccion(id: string) {
+    setSeleccionados((prev) => {
+      const siguiente = new Set(prev)
+      if (siguiente.has(id)) siguiente.delete(id)
+      else siguiente.add(id)
+      return siguiente
+    })
+  }
+
+  function alternarTodosSeleccionados() {
+    setSeleccionados(
+      todosSeleccionados ? new Set() : new Set(productos.map((producto) => producto.id)),
+    )
+  }
+
+  async function confirmarBorradoSeleccionados() {
+    await deleteProductos([...seleccionados])
+    setSeleccionados(new Set())
+  }
 
   function contacto() {
     if (proveedor) void registrarContacto(proveedor.id)
@@ -434,19 +590,52 @@ export function ProveedorDetail() {
         <section className={cx(cardClass, detailWideClass, 'p-5')}>
           <div className={cardHeaderClass}>
             <h2 className={cardTitleClass}>Catálogo</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              type="button"
-              onClick={() => {
-                setProductoEdit(null)
-                setProductoOpen(true)
-              }}
-            >
-              <Plus size={15} />
-              Agregar producto
-            </Button>
+            <div className="flex flex-wrap items-center gap-1">
+              <Button variant="ghost" size="sm" type="button" onClick={() => setImportarOpen(true)}>
+                <Upload size={15} />
+                Importar
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                onClick={() => {
+                  setProductoEdit(null)
+                  setProductoOpen(true)
+                }}
+              >
+                <Plus size={15} />
+                Agregar producto
+              </Button>
+            </div>
           </div>
+          {seleccionados.size > 0 ? (
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[10px] border border-danger/25 bg-danger-soft px-3 py-2">
+              <span className="text-[12.5px] font-semibold text-danger">
+                {seleccionados.size} producto{seleccionados.size === 1 ? '' : 's'} seleccionado
+                {seleccionados.size === 1 ? '' : 's'}
+              </span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  onClick={() => setSeleccionados(new Set())}
+                >
+                  Limpiar selección
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  type="button"
+                  onClick={() => setBorrarSeleccionados(true)}
+                >
+                  <Trash2 size={15} />
+                  Eliminar seleccionados
+                </Button>
+              </div>
+            </div>
+          ) : null}
           {productosOrdenados.length === 0 ? (
             <EmptyState
               title="Sin productos cargados"
@@ -457,10 +646,44 @@ export function ProveedorDetail() {
               <table className={tableClass}>
                 <thead>
                   <tr>
-                    <th className={cx(thClass, 'text-left')}>Producto</th>
-                    <th className={cx(thClass, 'text-left')}>Categoría</th>
-                    <th className={cx(thClass, 'text-right')}>Costo</th>
-                    <th className={cx(thClass, 'text-right')}>Mínimo</th>
+                    <th className={cx(thClass, 'w-8 pr-0 align-middle')}>
+                      <SelectionCheckbox
+                        checked={todosSeleccionados}
+                        indeterminate={seleccionados.size > 0 && !todosSeleccionados}
+                        onChange={alternarTodosSeleccionados}
+                        label={
+                          todosSeleccionados
+                            ? 'Quitar selección de todos'
+                            : 'Seleccionar todos los productos'
+                        }
+                      />
+                    </th>
+                    <SortableTh
+                      label="Producto"
+                      campo="nombre"
+                      orden={ordenProducto}
+                      onSort={alternarOrden}
+                    />
+                    <SortableTh
+                      label="Categoría"
+                      campo="categoria"
+                      orden={ordenProducto}
+                      onSort={alternarOrden}
+                    />
+                    <SortableTh
+                      label="Costo"
+                      campo="costo"
+                      orden={ordenProducto}
+                      onSort={alternarOrden}
+                      align="right"
+                    />
+                    <SortableTh
+                      label="Mínimo"
+                      campo="moq"
+                      orden={ordenProducto}
+                      onSort={alternarOrden}
+                      align="right"
+                    />
                     <th className={thClass} aria-label="Acciones" />
                   </tr>
                 </thead>
@@ -471,14 +694,35 @@ export function ProveedorDetail() {
                         ? calcularPrecioVenta(producto.costo, settings.margenGanancia)
                         : undefined
                     return (
-                      <tr key={producto.id}>
+                      <tr
+                        key={producto.id}
+                        className={cx(seleccionados.has(producto.id) && 'bg-surface-2')}
+                      >
+                        <td className={cx(tdClass, 'pr-0')}>
+                          <SelectionCheckbox
+                            checked={seleccionados.has(producto.id)}
+                            onChange={() => alternarSeleccion(producto.id)}
+                            label={`Seleccionar ${producto.nombre}`}
+                          />
+                        </td>
                         <td className={tdClass}>
-                          <span className="block font-semibold">{producto.nombre}</span>
-                          {producto.codigo ? (
-                            <span className="block text-[11.5px] text-muted">
-                              Cód. {producto.codigo}
-                            </span>
-                          ) : null}
+                          <div className="flex items-center gap-2.5">
+                            {producto.imagen ? (
+                              <img
+                                src={producto.imagen}
+                                alt=""
+                                className="size-9 shrink-0 rounded-lg border border-line object-cover"
+                              />
+                            ) : null}
+                            <div className="min-w-0">
+                              <span className="block font-semibold">{producto.nombre}</span>
+                              {producto.codigo ? (
+                                <span className="block text-[11.5px] text-muted">
+                                  Cód. {producto.codigo}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
                         </td>
                         <td className={tdClass}>{producto.categoria ?? '—'}</td>
                         <td className={cx(tdClass, 'text-right')}>
@@ -622,6 +866,15 @@ export function ProveedorDetail() {
         />
       ) : null}
 
+      {importarOpen ? (
+        <ImportarProductosDialog
+          open
+          onOpenChange={setImportarOpen}
+          proveedor={proveedor}
+          productosExistentes={productos}
+        />
+      ) : null}
+
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
@@ -643,6 +896,15 @@ export function ProveedorDetail() {
           if (borrarContacto) await deleteContacto(borrarContacto.id)
           setBorrarContacto(null)
         }}
+      />
+
+      <ConfirmDialog
+        open={borrarSeleccionados}
+        onOpenChange={setBorrarSeleccionados}
+        title="Eliminar productos seleccionados"
+        description={`Se van a eliminar ${seleccionados.size} producto${seleccionados.size === 1 ? '' : 's'} del catálogo. Los pedidos ya guardados no cambian.`}
+        confirmLabel={`Eliminar ${seleccionados.size}`}
+        onConfirm={confirmarBorradoSeleccionados}
       />
 
       <ConfirmDialog

@@ -1,3 +1,5 @@
+import { optimizarImagen } from '../lib/imagen'
+import type { FilaPlan, ProductoImportado, ResultadoImportacion } from '../lib/importProductos'
 import type {
   ContactoInput,
   Pedido,
@@ -79,6 +81,99 @@ export async function saveProducto(input: ProductoInput, id?: string): Promise<s
 
 export async function deleteProducto(id: string): Promise<void> {
   await db.productos.delete(id)
+}
+
+export async function deleteProductos(ids: string[]): Promise<void> {
+  if (ids.length === 0) return
+  await db.productos.bulkDelete(ids)
+}
+
+async function definirCampos(
+  producto: ProductoImportado,
+): Promise<Omit<ProductoInput, 'proveedorId'>> {
+  const campos: Omit<ProductoInput, 'proveedorId'> = {
+    nombre: producto.nombre,
+    codigo: producto.codigo,
+    categoria: producto.categoria,
+    costo: producto.costo,
+    unidad: producto.unidad,
+    moq: producto.moq,
+    link: producto.link,
+    imagen: producto.imagen,
+    notas: producto.notas,
+  }
+  if (campos.imagen?.startsWith('data:image/')) {
+    try {
+      campos.imagen = await optimizarImagen(campos.imagen)
+    } catch {
+      // Si el navegador no puede procesarla, se guarda el original.
+    }
+  }
+  return campos
+}
+
+export async function aplicarImportacion(
+  proveedorId: string,
+  plan: FilaPlan[],
+): Promise<ResultadoImportacion> {
+  const resultado: ResultadoImportacion = { creados: 0, actualizados: 0, omitidos: 0 }
+  const now = nowISO()
+
+  // Las imágenes base64 se optimizan antes de abrir la transacción.
+  const preparadas: {
+    fila: FilaPlan
+    campos?: Omit<ProductoInput, 'proveedorId'>
+  }[] = []
+  for (const fila of plan) {
+    preparadas.push({
+      fila,
+      campos: fila.producto ? await definirCampos(fila.producto) : undefined,
+    })
+  }
+
+  await db.transaction('rw', db.productos, async () => {
+    for (const { fila, campos } of preparadas) {
+      if (!fila.producto || !campos) {
+        resultado.omitidos += 1
+        continue
+      }
+      if (fila.estado === 'crear') {
+        await db.productos.add({
+          ...campos,
+          id: newId(),
+          proveedorId,
+          createdAt: now,
+        })
+        resultado.creados += 1
+        continue
+      }
+      if (fila.estado === 'actualizar' && fila.existenteId) {
+        const previo = await db.productos.get(fila.existenteId)
+        if (!previo) {
+          resultado.omitidos += 1
+          continue
+        }
+        const actualizado: Producto = {
+          ...previo,
+          nombre: campos.nombre,
+          codigo: campos.codigo ?? previo.codigo,
+          categoria: campos.categoria ?? previo.categoria,
+          costo: campos.costo ?? previo.costo,
+          unidad: campos.unidad ?? previo.unidad,
+          moq: campos.moq ?? previo.moq,
+          link: campos.link ?? previo.link,
+          imagen: campos.imagen ?? previo.imagen,
+          notas: campos.notas ?? previo.notas,
+        }
+        await db.productos.put(actualizado)
+        resultado.actualizados += 1
+        continue
+      }
+      resultado.omitidos += 1
+    }
+  })
+
+  return resultado
 }
 
 export async function crearPedido(proveedorId: string, input: PedidoInput): Promise<string> {

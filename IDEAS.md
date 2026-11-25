@@ -5,6 +5,7 @@ Posibles funciones para la app de proveedores y pedidos. Ordenadas por tema, con
 ## Ya implementado
 
 - **Comparador de compras** (`/comparar`): costo unitario, MOQ, envío y pedido mínimo por proveedor, con la mejor opción marcada.
+- **Importar catálogo con IA** (`Proveedor → Catálogo → Importar`): prompt listo para pegar junto al catálogo, vista previa y alta o actualización masiva de productos.
 - **Envío por proveedor**: costo de envío y envío gratis desde cierto monto.
 - **WhatsApp directo**: envío del pedido con `wa.me` y texto precargado.
 
