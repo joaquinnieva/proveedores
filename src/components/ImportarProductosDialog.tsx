@@ -18,6 +18,7 @@ import {
   resumirPlan,
 } from '../lib/importProductos'
 import type { Producto, Proveedor } from '../types'
+import { ImagenAmpliable } from './ImagenAmpliable'
 import {
   buttonSecondaryClass,
   cardClass,
@@ -332,13 +333,10 @@ export function ImportarProductosDialog({
                               <td className={tdClass}>
                                 <div className="flex items-center gap-2.5">
                                   {fila.producto?.imagen ? (
-                                    <img
+                                    <ImagenAmpliable
                                       src={fila.producto.imagen}
-                                      alt=""
-                                      className="size-9 shrink-0 rounded-lg border border-line object-cover"
-                                      onError={(event) => {
-                                        event.currentTarget.style.display = 'none'
-                                      }}
+                                      alt={fila.producto.nombre ?? 'Producto'}
+                                      className="size-9"
                                     />
                                   ) : null}
                                   <div className="min-w-0">

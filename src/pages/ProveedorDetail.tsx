@@ -20,6 +20,7 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ContactoDialog } from '../components/ContactoDialog'
+import { ImagenAmpliable } from '../components/ImagenAmpliable'
 import { ImportarProductosDialog } from '../components/ImportarProductosDialog'
 import { PedidoDialog } from '../components/PedidoDialog'
 import { ProductoDialog } from '../components/ProductoDialog'
@@ -708,10 +709,10 @@ export function ProveedorDetail() {
                         <td className={tdClass}>
                           <div className="flex items-center gap-2.5">
                             {producto.imagen ? (
-                              <img
+                              <ImagenAmpliable
                                 src={producto.imagen}
-                                alt=""
-                                className="size-9 shrink-0 rounded-lg border border-line object-cover"
+                                alt={producto.nombre}
+                                className="size-9"
                               />
                             ) : null}
                             <div className="min-w-0">
