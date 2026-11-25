@@ -1,4 +1,4 @@
-import { ClipboardList, LayoutDashboard, Settings, Store } from 'lucide-react'
+import { ArrowLeftRight, ClipboardList, LayoutDashboard, Settings, Store } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { NavLink, useLocation, useOutlet } from 'react-router'
 import { cx } from '../lib/cx'
@@ -7,6 +7,7 @@ const navItems = [
   { to: '/', label: 'Panel', icon: LayoutDashboard, end: true },
   { to: '/proveedores', label: 'Proveedores', icon: Store, end: false },
   { to: '/pedidos', label: 'Pedidos', icon: ClipboardList, end: false },
+  { to: '/comparar', label: 'Comparar', icon: ArrowLeftRight, end: false },
   { to: '/ajustes', label: 'Ajustes', icon: Settings, end: false },
 ]
 
@@ -64,7 +65,7 @@ export function Layout() {
           </motion.div>
         </AnimatePresence>
       </main>
-      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 gap-0.5 border-t border-line bg-surface px-1.5 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 min-[900px]:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 gap-0.5 border-t border-line bg-surface px-1.5 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 min-[900px]:hidden">
         {navItems.map((item) => {
           const Icon = item.icon
           return (

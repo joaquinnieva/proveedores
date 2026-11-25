@@ -45,6 +45,12 @@ export function ProveedorDialog({
   const [pedidoMinimo, setPedidoMinimo] = useState(
     typeof proveedor?.pedidoMinimo === 'number' ? String(proveedor.pedidoMinimo) : '',
   )
+  const [costoEnvio, setCostoEnvio] = useState(
+    typeof proveedor?.costoEnvio === 'number' ? String(proveedor.costoEnvio) : '',
+  )
+  const [envioGratisDesde, setEnvioGratisDesde] = useState(
+    typeof proveedor?.envioGratisDesde === 'number' ? String(proveedor.envioGratisDesde) : '',
+  )
   const [plazoEntrega, setPlazoEntrega] = useState(proveedor?.plazoEntrega ?? '')
   const [ultimoContacto, setUltimoContacto] = useState(proveedor?.ultimoContacto ?? '')
   const [notas, setNotas] = useState(proveedor?.notas ?? '')
@@ -74,6 +80,8 @@ export function ProveedorDialog({
           zona: zona.trim() || undefined,
           condicionesPago: condicionesPago.trim() || undefined,
           pedidoMinimo: parseNumber(pedidoMinimo),
+          costoEnvio: parseNumber(costoEnvio),
+          envioGratisDesde: parseNumber(envioGratisDesde),
           plazoEntrega: plazoEntrega.trim() || undefined,
           notas: notas.trim() || undefined,
           ultimoContacto: ultimoContacto || undefined,
@@ -142,6 +150,7 @@ export function ProveedorDialog({
                 onChange={setWhatsapp}
                 placeholder="+54 9 11 5555 5555"
                 inputMode="tel"
+                hint="Con código de país para que abra el chat directo."
               />
               <TextField
                 label="Email"
@@ -194,6 +203,22 @@ export function ProveedorDialog({
                 onChange={setPedidoMinimo}
                 placeholder="0"
                 inputMode="decimal"
+              />
+              <TextField
+                label="Costo de envío"
+                value={costoEnvio}
+                onChange={setCostoEnvio}
+                placeholder="0"
+                inputMode="decimal"
+                hint="Se usa en el comparador de compras."
+              />
+              <TextField
+                label="Envío gratis desde"
+                value={envioGratisDesde}
+                onChange={setEnvioGratisDesde}
+                placeholder="Opcional"
+                inputMode="decimal"
+                hint="Monto de compra desde el que no cobra envío."
               />
               <TextField
                 label="Plazo de entrega"

@@ -275,6 +275,17 @@ export function ProveedorDetail() {
                 {formatMoney(proveedor.pedidoMinimo, settings)}
               </InfoRow>
             ) : null}
+            {typeof proveedor.costoEnvio === 'number' ? (
+              <InfoRow label="Envío">
+                {proveedor.costoEnvio > 0
+                  ? `${formatMoney(proveedor.costoEnvio, settings)}${
+                      typeof proveedor.envioGratisDesde === 'number'
+                        ? ` · gratis desde ${formatMoney(proveedor.envioGratisDesde, settings)}`
+                        : ''
+                    }`
+                  : 'Gratis'}
+              </InfoRow>
+            ) : null}
             {proveedor.plazoEntrega ? (
               <InfoRow label="Entrega">{proveedor.plazoEntrega}</InfoRow>
             ) : null}

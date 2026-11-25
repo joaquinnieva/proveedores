@@ -34,6 +34,8 @@ export interface Proveedor {
   zona?: string
   condicionesPago?: string
   pedidoMinimo?: number
+  costoEnvio?: number
+  envioGratisDesde?: number
   plazoEntrega?: string
   notas?: string
   ultimoContacto?: string

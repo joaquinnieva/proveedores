@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router'
 import { Layout } from './components/Layout'
 import { Ajustes } from './pages/Ajustes'
+import { Comparar } from './pages/Comparar'
 import { Dashboard } from './pages/Dashboard'
 import { NotFound } from './pages/NotFound'
 import { PedidoDetail } from './pages/PedidoDetail'
@@ -17,6 +18,7 @@ export const router = createBrowserRouter([
       { path: 'proveedores/:id', element: <ProveedorDetail /> },
       { path: 'pedidos', element: <Pedidos /> },
       { path: 'pedidos/:id', element: <PedidoDetail /> },
+      { path: 'comparar', element: <Comparar /> },
       { path: 'ajustes', element: <Ajustes /> },
       { path: '*', element: <NotFound /> },
     ],
